@@ -79,6 +79,18 @@ using std::string_view;
 using std::vector;
 using transport::catalogue::TransportCatalogue;
 
+void Reader::ReadStream(std::istream& in, TransportCatalogue& catalogue) {
+    int base_request_count;
+    in >> base_request_count >> ws;
+
+    for (int i = 0; i < base_request_count; ++i) {
+        string line;
+        getline(in, line);
+        ParseLine(line);
+        ApplyCommands(catalogue);
+    }
+}
+
 void Reader::ParseLine(string_view line) {
     auto cmd = detail::ParseCommandDescription(line);
     if (cmd) {
@@ -87,14 +99,14 @@ void Reader::ParseLine(string_view line) {
 }
 
 void Reader::ApplyCommands(TransportCatalogue& catalogue) const {
-    // Сначала все остановки
+    // all stops
     for (const auto& cmd : commands_) {
         if (cmd.command == "Stop") {
             auto coords = detail::ParseCoordinates(cmd.description);
             catalogue.AddStop(cmd.id, coords);
         }
     }
-    // Потом все маршруты
+    // all buses
     for (const auto& cmd : commands_) {
         if (cmd.command == "Bus") {
             string_view route = cmd.description;

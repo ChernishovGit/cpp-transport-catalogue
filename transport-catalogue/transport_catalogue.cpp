@@ -24,7 +24,7 @@ void TransportCatalogue::AddStop(string name, transport::geo::Coordinates coords
     stops_index_[stop.name] = &stop;
 }
 
-void TransportCatalogue::AddBus(string name, vector<string> stop_names, bool is_circle) {
+void TransportCatalogue::AddBus(string name, const vector<string>& stop_names, bool is_circle) {
     buses_.emplace_back();
     Bus& bus = buses_.back();
     bus.name = std::move(name);
@@ -34,7 +34,7 @@ void TransportCatalogue::AddBus(string name, vector<string> stop_names, bool is_
         const Stop* stop = FindStop(stop_name);
         if (stop) {
             bus.stops.push_back(stop);
-            stop_to_bus_[stop->name].insert(bus.name);
+            stop_to_bus_[string(stop->name)].insert(bus.name);
         }
     }
 
@@ -86,22 +86,17 @@ optional<BusInfo> TransportCatalogue::GetBusInfo(string_view bus_name) const {
     return info;
 }
 
-optional<vector<string>> TransportCatalogue::GetBusesByStop(string_view stop_name) const {
+optional<const set<string>*> TransportCatalogue::GetBusesByStop(string_view stop_name) const {
     if (!FindStop(stop_name)) {
         return std::nullopt;
     }
 
-    auto it = stop_to_bus_.find(stop_name);
+    auto it = stop_to_bus_.find(string(stop_name));
     if (it == stop_to_bus_.end()) {
-        return vector<string>{};
+        static const std::set<std::string> empty_set;
+        return &empty_set;
     }
 
-    vector<string> buses;
-    buses.reserve(it->second.size());
-    for (const auto& bus_name : it->second) {
-        buses.push_back(string(bus_name));
-    }
-    return buses;
+    return &it->second;
 }
-
 } // namespace transport::catalogue

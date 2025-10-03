@@ -28,12 +28,14 @@ void ParseAndPrintStat(const TransportCatalogue& catalogue, string_view request,
     }
     else if (request.size() >= 6 && request.substr(0, 5) == "Stop ") {
         string stop_name(request.substr(5));
-        if (auto buses = catalogue.GetBusesByStop(stop_name)) {
-            if (buses->empty()) {
+        if (auto bus_set_ptr = catalogue.GetBusesByStop(stop_name)) {
+            const auto& buses = **bus_set_ptr;
+            if (buses.empty()) {
                 output << "Stop " << stop_name << ": no buses\n";
-            } else {
+            }
+            else {
                 output << "Stop " << stop_name << ": buses";
-                for (const auto& bus : *buses) {
+                for (const auto& bus : buses) {
                     output << " " << bus;
                 }
                 output << "\n";
@@ -41,6 +43,16 @@ void ParseAndPrintStat(const TransportCatalogue& catalogue, string_view request,
         } else {
             output << "Stop " << stop_name << ": not found\n";
         }
+    }
+}
+
+void StatRequest(std::istream& in,std::ostream& out, const TransportCatalogue& catalogue) {
+    int stat_request_count;
+    in >> stat_request_count >> ws;
+    for (int i = 0; i < stat_request_count; ++i) {
+        string line;
+        getline(in, line);
+        transport::stat::ParseAndPrintStat(catalogue, line, out);
     }
 }
 } // namespace transport::stat
