@@ -1,5 +1,6 @@
 #include "transport_catalogue.h"
 #include <unordered_set>
+#include <limits>
 
 namespace transport::catalogue {
 
@@ -58,31 +59,50 @@ optional<BusInfo> TransportCatalogue::GetBusInfo(string_view bus_name) const {
     }
 
     BusInfo info;
-    info.total_stops = bus->is_circle ? bus->stops.size() : bus->stops.size() * 2 - 1;
+    const auto& stops = bus->stops;
 
-    unordered_set<const Stop*> unique_stops(bus->stops.begin(), bus->stops.end());
+    unordered_set<const Stop*> unique_stops(stops.begin(), stops.end());
     info.unique_stops = unique_stops.size();
 
-    double total_distance = 0.0;
-    for (size_t i = 1; i < bus->stops.size(); ++i) {
-        total_distance += transport::geo::ComputeDistance(
-            bus->stops[i - 1]->coordinates,
-            bus->stops[i]->coordinates
-        );
-    }
+    int road_length = 0;
+    double geo_length = 0.0;
 
     if (bus->is_circle) {
-        if (bus->stops.size() > 1) {
-            total_distance += transport::geo::ComputeDistance(
-                bus->stops.back()->coordinates,
-                bus->stops.front()->coordinates
+        for (size_t i = 1; i < stops.size(); ++i) {
+            road_length += GetDistance(stops[i-1], stops[i]);
+            geo_length += transport::geo::ComputeDistance(
+                stops[i-1]->coordinates,
+                stops[i]->coordinates
             );
         }
+        if (stops.size() > 1) {
+            road_length += GetDistance(stops.back(), stops.front());
+            geo_length += transport::geo::ComputeDistance(
+                stops.back()->coordinates,
+                stops.front()->coordinates
+            );
+        }
+        info.total_stops = stops.size();
     } else {
-        total_distance *= 2;
+        for (size_t i = 1; i < stops.size(); ++i) {
+            road_length += GetDistance(stops[i-1], stops[i]);
+            geo_length += transport::geo::ComputeDistance(
+                stops[i-1]->coordinates,
+                stops[i]->coordinates
+            );
+        }
+        for (size_t i = stops.size() - 1; i > 0; --i) {
+            road_length += GetDistance(stops[i], stops[i-1]);
+            geo_length += transport::geo::ComputeDistance(
+                stops[i]->coordinates,
+                stops[i-1]->coordinates
+            );
+        }
+        info.total_stops = 2 * stops.size() - 1;
     }
 
-    info.length = total_distance;
+    info.length = road_length;
+    info.curvature = (geo_length == 0.0) ? 1.0 : static_cast<double>(road_length) / geo_length;
     return info;
 }
 
@@ -99,4 +119,28 @@ optional<const set<string>*> TransportCatalogue::GetBusesByStop(string_view stop
 
     return &it->second;
 }
+
+void TransportCatalogue::SetDistance(const Stop* from, const Stop* to, int distance) {
+    distances_[{from, to}] = distance;
+}
+
+int TransportCatalogue::GetDistance(const Stop* from, const Stop* to) const {
+    /*if (from == to) {
+        return 0;
+    }*/
+
+    auto it = distances_.find({ from, to });
+    if (it != distances_.end()) {
+        return it->second;
+    }
+
+    it = distances_.find({ to, from });
+    if (it != distances_.end()) {
+        return it->second;
+    }
+
+    //return static_cast<int>(std::round(transport::geo::ComputeDistance(from->coordinates, to->coordinates)));
+    return transport::geo::ComputeDistance(from->coordinates, to->coordinates);
+}
+
 } // namespace transport::catalogue

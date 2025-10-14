@@ -5,6 +5,11 @@
 #include <vector>
 #include <string_view>
 #include <cmath>
+#include <sstream> 
+#include <iomanip>
+#include <limits>
+
+#include "transport_catalogue.h"
 
 namespace transport::input::detail {
 
@@ -78,17 +83,20 @@ using std::string;
 using std::string_view;
 using std::vector;
 using transport::catalogue::TransportCatalogue;
+using transport::catalogue::Stop;
 
 void Reader::ReadStream(std::istream& in, TransportCatalogue& catalogue) {
     int base_request_count;
-    in >> base_request_count >> ws;
+    in >> base_request_count;
+    in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
+    commands_.clear();
     for (int i = 0; i < base_request_count; ++i) {
         string line;
         getline(in, line);
         ParseLine(line);
-        ApplyCommands(catalogue);
     }
+    ApplyCommands(catalogue);
 }
 
 void Reader::ParseLine(string_view line) {
@@ -106,6 +114,45 @@ void Reader::ApplyCommands(TransportCatalogue& catalogue) const {
             catalogue.AddStop(cmd.id, coords);
         }
     }
+
+    // distances
+    for (const auto& cmd : commands_) {
+        if (cmd.command == "Stop") {
+            const Stop* from_stop = catalogue.FindStop(cmd.id);
+            if (!from_stop) continue;
+
+            string_view desc = cmd.description;
+            size_t first_comma = desc.find(',');
+            if (first_comma == string_view::npos) continue;
+            size_t second_comma = desc.find(',', first_comma + 1);
+            size_t start = (second_comma == string_view::npos) ? first_comma + 1 : second_comma + 1;
+            string_view dist_part = detail::Trim(desc.substr(start));
+
+            if (dist_part.empty()) continue;
+
+            auto parts = detail::Split(dist_part, ',');
+            for (string_view part : parts) {
+                part = detail::Trim(part);
+                size_t m_pos = part.find("m to ");
+                if (m_pos == string_view::npos) continue;
+
+                string_view num_str = part.substr(0, m_pos);
+                string_view to_name = part.substr(m_pos + 5); 
+
+                try {
+                    int distance = std::stoi(std::string(num_str));
+                    const Stop* to_stop = catalogue.FindStop(to_name);
+                    if (to_stop) {
+                        catalogue.SetDistance(from_stop, to_stop, distance);
+                    }
+                }
+                catch (...) {
+                    // Игнорируем ошибки парсинга
+                }
+            }
+        }
+    }
+
     // all buses
     for (const auto& cmd : commands_) {
         if (cmd.command == "Bus") {
@@ -117,7 +164,7 @@ void Reader::ApplyCommands(TransportCatalogue& catalogue) const {
                 : detail::Split(route, '-');
             stops.reserve(parts.size());
             for (const auto& p : parts) {
-                stops.emplace_back(p);
+                stops.emplace_back(std::string(detail::Trim(p)));
             }
             catalogue.AddBus(cmd.id, std::move(stops), is_circle);
         }

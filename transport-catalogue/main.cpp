@@ -9,8 +9,9 @@ int main() {
     using namespace transport;
 
     catalogue::TransportCatalogue catalogue;
+    input::Reader reader;
 
-    ReadStream(cin, &catalogue)
+    reader.ReadStream(cin, catalogue);
 
-    StatRequest(cin, cout, &catalogue)
+    transport::stat::StatRequest(cin, cout, catalogue);
 }

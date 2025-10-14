@@ -17,11 +17,12 @@ void ParseAndPrintStat(const TransportCatalogue& catalogue, string_view request,
     if (request.size() >= 5 && request.substr(0, 4) == "Bus ") {
         string bus_name(request.substr(4));
         if (auto info = catalogue.GetBusInfo(bus_name)) {
-            output << std::setprecision(6)
+            output << std::fixed << std::setprecision(6)
                    << "Bus " << bus_name << ": "
                    << info->total_stops << " stops on route, "
-                   << info->unique_stops << " unique stops, "
-                   << info->length << " route length\n";
+                    << info->unique_stops << " unique stops, "
+                    << info->length << " route length, "
+                    << info->curvature << " curvature\n";
         } else {
             output << "Bus " << bus_name << ": not found\n";
         }
@@ -48,7 +49,8 @@ void ParseAndPrintStat(const TransportCatalogue& catalogue, string_view request,
 
 void StatRequest(std::istream& in,std::ostream& out, const TransportCatalogue& catalogue) {
     int stat_request_count;
-    in >> stat_request_count >> ws;
+    in >> stat_request_count;
+    in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     for (int i = 0; i < stat_request_count; ++i) {
         string line;
         getline(in, line);

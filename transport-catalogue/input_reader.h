@@ -25,7 +25,7 @@ class Reader {
 public:
     void ParseLine(std::string_view line);
     void ApplyCommands(transport::catalogue::TransportCatalogue& catalogue) const;
-    void ReadStream(std::istream& in, TransportCatalogue& catalogue);
+    void ReadStream(std::istream& in, transport::catalogue::TransportCatalogue& catalogue);
 
 private:
     std::vector<CommandDescription> commands_;
