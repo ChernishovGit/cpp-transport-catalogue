@@ -125,9 +125,6 @@ void TransportCatalogue::SetDistance(const Stop* from, const Stop* to, int dista
 }
 
 int TransportCatalogue::GetDistance(const Stop* from, const Stop* to) const {
-    /*if (from == to) {
-        return 0;
-    }*/
 
     auto it = distances_.find({ from, to });
     if (it != distances_.end()) {
@@ -139,7 +136,6 @@ int TransportCatalogue::GetDistance(const Stop* from, const Stop* to) const {
         return it->second;
     }
 
-    //return static_cast<int>(std::round(transport::geo::ComputeDistance(from->coordinates, to->coordinates)));
     return transport::geo::ComputeDistance(from->coordinates, to->coordinates);
 }
 
