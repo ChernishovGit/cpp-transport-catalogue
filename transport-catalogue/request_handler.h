@@ -8,14 +8,7 @@
 
 namespace transport::request_handler {
 
-class RequestHandler {
-public:
-    RequestHandler(const transport::catalogue::TransportCatalogue& db);
-    std::optional<transport::catalogue::BusInfo> GetBusStat(std::string_view bus_name) const;
-    std::optional<const std::set<std::string>*> GetBusesByStop(std::string_view stop_name) const;
-
-private:
-    const transport::catalogue::TransportCatalogue& db_;
-};
+std::optional<transport::catalogue::BusInfo> GetBusStat(std::string_view bus_name, const transport::catalogue::TransportCatalogue& catalogue);
+std::optional<const std::set<std::string>*> GetBusesByStop(std::string_view stop_name, const transport::catalogue::TransportCatalogue& catalogue);
 
 } // namespace transport::request_handler

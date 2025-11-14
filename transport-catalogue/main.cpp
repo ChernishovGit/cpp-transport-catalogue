@@ -7,6 +7,7 @@ int main() {
     //transport::json_reader::ProcessRequests(std::cin, std::cout, catalogue);
 
     transport::catalogue::TransportCatalogue catalogue;
-    transport::json_reader::ProcessRequests(std::cin, std::cout, catalogue);
+    transport::json_reader::JSONReader request(catalogue);
+    request.ProcessRequests(input_stream, std::cout);
     return 0;
 }
