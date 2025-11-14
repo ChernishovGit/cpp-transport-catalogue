@@ -10,10 +10,24 @@
 
 namespace transport::json_reader {
 
-void ProcessRequests(std::istream& in, std::ostream& out, transport::catalogue::TransportCatalogue& catalogue);
+class JSONReader {
+public:
+	JSONReader(transport::catalogue::TransportCatalogue& catalogue) : catalogue_(catalogue) {};
 
-transport::renderer::RenderSettings ReadRenderSettings(const json::Dict& render_settings_map);
+	void ProcessRequests(std::istream& in, std::ostream& out);
 
-svg::Color ReadColor(const json::Node& color_node);
+private:
+	void ProcessStops(const json::Array& base_requests);
+	void ProcessDistances(const json::Array& base_requests);
+	void ProcessBusses(const json::Array& base_requests);
 
+	void RequestBus(json::Dict& response, const json::Dict& req_map) const;
+	void RequestStop(json::Dict& response, const json::Dict& req_map) const;
+	void ProcessMap(json::Dict& response, renderer::RenderSettings render_settings) const;
+
+	transport::renderer::RenderSettings ReadRenderSettings(const json::Dict& render_settings_map);
+	svg::Color ReadColor(const json::Node& color_node);
+
+private:
+	transport::catalogue::TransportCatalogue& catalogue_;
 } // namespace transport::json_reader
