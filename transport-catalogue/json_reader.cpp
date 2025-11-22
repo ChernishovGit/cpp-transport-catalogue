@@ -40,19 +40,22 @@ void JSONReader::ProcessRequests(std::istream& in, std::ostream& out) {
             int id = req_map.at("id"s).AsInt();
             std::string_view req_type = req_map.at("type"s).AsString();
 
-            json::Dict response{{"request_id", json::Node(id)}};
+            json::Builder builder;
+            builder.StartDict();
+            builder.Key("request_id").Value(id);
 
             if (req_type == "Bus"sv) {
-                RequestBus(response, req_map);
+                RequestBus(builder, req_map);
             } else if (req_type == "Stop"sv) {
-                RequestStop(response, req_map);
+                RequestStop(builder, req_map);
             } else if (req_type == "Map"sv) {
-                ProcessMap(response, render_settings);
+                ProcessMap(builder, render_settings);
             } else {
-                response["error_message"] = json::Node("unknown request type"s);
+                builder.Key("error_message").Value("unknown request type"s);
             }
 
-            responses.push_back(json::Node(std::move(response)));
+            builder.EndDict();
+            responses.push_back(builder.Build());
         }
 
         json::Print(json::Document(json::Node(std::move(responses))), out);
@@ -113,40 +116,38 @@ void JSONReader::ProcessBusses(const json::Array& base_requests)
     }
 }
 
-void JSONReader::RequestBus(json::Dict& response, const json::Dict& req_map) const
-{
+void JSONReader::RequestBus(json::Builder& builder, const json::Dict& req_map) const {
     std::string_view bus_name = req_map.at("name"s).AsString();
     if (auto info = transport::request_handler::GetBusStat(bus_name, catalogue_)) {
-        response["curvature"] = json::Node(info->curvature);
-        response["route_length"] = json::Node(info->length);
-        response["stop_count"] = json::Node(static_cast<int>(info->total_stops));
-        response["unique_stop_count"] = json::Node(static_cast<int>(info->unique_stops));
+        builder.Key("curvature").Value(info->curvature);
+        builder.Key("route_length").Value(info->length);
+        builder.Key("stop_count").Value(static_cast<int>(info->total_stops));
+        builder.Key("unique_stop_count").Value(static_cast<int>(info->unique_stops));
     }
     else {
-        response["error_message"] = json::Node("not found"s);
+        builder.Key("error_message").Value("not found"s);
     }
 }
 
-void JSONReader::RequestStop(json::Dict& response, const json::Dict& req_map) const
-{
+void JSONReader::RequestStop(json::Builder& builder, const json::Dict& req_map) const {
     std::string_view stop_name = req_map.at("name"s).AsString();
     if (auto buses_opt = transport::request_handler::GetBusesByStop(stop_name, catalogue_)) {
         const auto& buses = **buses_opt;
         std::vector<std::string> names(buses.begin(), buses.end());
         std::sort(names.begin(), names.end());
+
         json::Array arr;
         for (const auto& name : names) {
             arr.push_back(json::Node(name));
         }
-        response["buses"] = json::Node(std::move(arr));
+        builder.Key("buses").Value(std::move(arr));
     }
     else {
-        response["error_message"] = json::Node("not found"s);
+        builder.Key("error_message").Value("not found"s);
     }
 }
 
-void JSONReader::ProcessMap(json::Dict& response, renderer::RenderSettings render_settings) const
-{
+void JSONReader::ProcessMap(json::Builder& builder, renderer::RenderSettings render_settings) const {
     // Генерируем SVG карту и включаем ее в JSON ответ
     transport::renderer::MapRenderer renderer(render_settings, catalogue_);
     auto svg_doc = renderer.Render();
@@ -154,7 +155,7 @@ void JSONReader::ProcessMap(json::Dict& response, renderer::RenderSettings rende
     // Сохраняем SVG в строку
     std::ostringstream svg_stream;
     svg_doc.Render(svg_stream);
-    response["map"] = json::Node(svg_stream.str());
+    builder.Key("map").Value(svg_stream.str());
 }
 
 transport::renderer::RenderSettings JSONReader::ReadRenderSettings(const json::Dict& render_settings_map) {
