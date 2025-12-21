@@ -47,7 +47,7 @@ void Builder::EnsureInDict() {
     }
 }
 
-void Builder::EnsureInArray() {  // ← Обязательно должен быть!
+void Builder::EnsureInArray() {
     if (nodes_stack_.empty() || !nodes_stack_.back()->IsArray()) {
         throw std::logic_error("EndArray called not inside an array."s);
     }
@@ -143,7 +143,7 @@ Builder& Builder::EndDict() {
 
 Builder& Builder::EndArray() {
     EnsureCanModify();
-    EnsureInArray();  // ← вызывает EnsureInArray
+    EnsureInArray();
     nodes_stack_.pop_back();
     return *this;
 }

@@ -3,9 +3,6 @@
 #include <iostream>
 
 int main() {
-    //transport::catalogue::TransportCatalogue catalogue;
-    //transport::json_reader::ProcessRequests(std::cin, std::cout, catalogue);
-
     transport::catalogue::TransportCatalogue catalogue;
     transport::json_reader::JSONReader request(catalogue);
     request.ProcessRequests(std::cin, std::cout);

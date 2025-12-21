@@ -47,7 +47,6 @@ class KeyContext {
 public:
     explicit KeyContext(Builder& builder);
     
-    // После Key разрешены только Value, StartDict, StartArray
     DictValueContext Value(Node::Value value);
     DictValueContext StartDict();
     ArrayValueContext StartArray();
@@ -60,7 +59,6 @@ class DictValueContext {
 public:
     explicit DictValueContext(Builder& builder);
     
-    // После Value в словаре разрешены только Key, EndDict
     KeyContext Key(std::string key);
     Builder& EndDict();
 
@@ -72,7 +70,6 @@ class ArrayValueContext {
 public:
     explicit ArrayValueContext(Builder& builder);
     
-    // В массиве разрешены Value, StartDict, StartArray, EndArray
     ArrayValueContext Value(Node::Value value);
     DictValueContext StartDict();
     ArrayValueContext StartArray();
