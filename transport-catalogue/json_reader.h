@@ -5,6 +5,7 @@
 #include "request_handler.h"
 #include "map_renderer.h"
 #include "json_builder.h"
+#include "transport_router.h"
 
 #include <istream>
 #include <ostream>
@@ -29,7 +30,12 @@ private:
 	transport::renderer::RenderSettings ReadRenderSettings(const json::Dict& render_settings_map);
 	svg::Color ReadColor(const json::Node& color_node);
 
+	void RequestRoute(json::Builder& builder,
+					 const json::Dict& req_map,
+					 const transport::routing::RoutingSettings& routing_settings) const;
+
 private:
 	transport::catalogue::TransportCatalogue& catalogue_;
+	mutable std::optional<transport::routing::TransportRouter> transport_router_;
 };
 } // namespace transport::json_reader

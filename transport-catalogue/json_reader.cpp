@@ -28,6 +28,13 @@ void JSONReader::ProcessRequests(std::istream& in, std::ostream& out) {
     ProcessDistances(base_requests);
     ProcessBusses(base_requests);
 
+    transport::routing::RoutingSettings routing_settings;
+    if (root_map.count("routing_settings"s)) {
+        const auto& rs = root_map.at("routing_settings"s).AsMap();
+        routing_settings.bus_wait_time = rs.at("bus_wait_time"s).AsInt();
+        routing_settings.bus_velocity = rs.at("bus_velocity"s).AsDouble();
+        transport_router_.emplace(catalogue_, routing_settings);
+    }
 
     // Обрабатываем stat_requests если они есть
     if (root_map.count("stat_requests"s)) {
@@ -50,7 +57,15 @@ void JSONReader::ProcessRequests(std::istream& in, std::ostream& out) {
                 RequestStop(builder, req_map);
             } else if (req_type == "Map"sv) {
                 ProcessMap(builder, render_settings);
-            } else {
+            } 
+            else if (req_type == "Route"sv) {
+                if (!transport_router_) {
+                    builder.Key("error_message").Value("routing settings not provided"s);
+                } else {
+                    RequestRoute(builder, req_map, routing_settings);
+                }
+            } 
+            else {
                 builder.Key("error_message").Value("unknown request type"s);
             }
 
@@ -148,11 +163,9 @@ void JSONReader::RequestStop(json::Builder& builder, const json::Dict& req_map) 
 }
 
 void JSONReader::ProcessMap(json::Builder& builder, renderer::RenderSettings render_settings) const {
-    // Генерируем SVG карту и включаем ее в JSON ответ
     transport::renderer::MapRenderer renderer(render_settings, catalogue_);
     auto svg_doc = renderer.Render();
 
-    // Сохраняем SVG в строку
     std::ostringstream svg_stream;
     svg_doc.Render(svg_stream);
     builder.Key("map").Value(svg_stream.str());
@@ -207,9 +220,39 @@ svg::Color JSONReader::ReadColor(const json::Node& color_node) {
             };
         }
     }
-    
-    // По умолчанию возвращаем черный цвет
     return "black"s;
+}
+
+void JSONReader::RequestRoute(
+    json::Builder& builder,
+    const json::Dict& req_map,
+    const transport::routing::RoutingSettings&) const
+{
+    std::string_view from = req_map.at("from"s).AsString();
+    std::string_view to = req_map.at("to"s).AsString();
+
+    if (auto route = transport_router_->BuildRoute(from, to)) {
+        builder.Key("total_time").Value(route->total_time);
+
+        json::Array items;
+        for (const auto& item : route->items) {
+            json::Dict item_dict;
+            if (item.type == transport::routing::RoutingItem::Type::WAIT) {
+                item_dict["type"] = json::Node("Wait"s);
+                item_dict["stop_name"] = json::Node(item.stop_name);
+                item_dict["time"] = json::Node(item.time);
+            } else {
+                item_dict["type"] = json::Node("Bus"s);
+                item_dict["bus"] = json::Node(item.bus_name);
+                item_dict["span_count"] = json::Node(static_cast<int>(item.span_count));
+                item_dict["time"] = json::Node(item.time);
+            }
+            items.push_back(json::Node(std::move(item_dict)));
+        }
+        builder.Key("items").Value(std::move(items));
+    } else {
+        builder.Key("error_message").Value("not found"s);
+    }
 }
 
 } // namespace transport::json_reader
